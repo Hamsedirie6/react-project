@@ -1,4 +1,4 @@
-// src/auth/AuthContext.tsx
+
 import { createContext, useContext, useEffect, useState} from "react";
 import type {PropsWithChildren } from "react";
 
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Försök hämta ev. aktiv session vid mount
+
   useEffect(() => {
     (async () => {
       try {
