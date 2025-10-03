@@ -1,16 +1,14 @@
-import { Row, Col } from 'react-bootstrap';
-
-Start.route = {
-  path: '/',
-  menuLabel: 'Start',
-  index: 1
-}
+import { Row, Col } from "react-bootstrap";
 
 export default function Start() {
-  return <Row>
-    <Col>
-      <h2>My start page</h2>
-      <p>The start page of my application. Change soon.</p>
-    </Col>
-  </Row>
+  return (
+    <Row>
+      <Col>
+        <h2>Välkommen till Restaurangbokningen</h2>
+        <p>
+          Här kan du boka bord, se dina bokningar och hantera dina reservationer.
+        </p>
+      </Col>
+    </Row>
+  );
 }
