@@ -1,58 +1,131 @@
-import { FormEvent, useEffect, useState } from "react";
+// src/pages/BookingForm.tsx
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { get, post, put } from "../api/client";
-import { Booking } from "../types";
+import type { Booking } from "../types";
 import { useNavigate, useParams } from "react-router-dom";
-import { Alert, Button, Container, Form } from "react-bootstrap";
+import { Alert, Button, Container, Form, Spinner, Badge } from "react-bootstrap";
 import { useAuth } from "../auth/AuthContext";
 
-type FormState = Omit<Booking, "id" | "createdAt">;
+type FormState = Pick<Booking, "date" | "time" | "guests" | "note">;
+
+const OPEN_HOUR = 11;
+const CLOSE_HOUR = 21;
+const CAPACITY = 6;
 
 export default function BookingForm() {
-  const { id } = useParams(); // "new" eller numeriskt id
+  const { id } = useParams();
   const isEdit = id !== "new";
-  const [state, setState] = useState<FormState>({ userId: 0, date: "", time: "", guests: 1, note: "" });
-  const [err, setErr] = useState<string | null>(null);
   const nav = useNavigate();
   const { user } = useAuth();
 
-  useEffect(() => {
-    // Sätt userId för ny bokning till inloggad användare
-    if (!isEdit && user) {
-      setState(s => ({ ...s, userId: user.id }));
-    }
-  }, [isEdit, user]);
+  const today = useMemo(() => new Date(), []);
+  const yyyy = today.getFullYear();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${yyyy}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const maxDateStr = `${yyyy}-12-31`;
+
+  const [state, setState] = useState<FormState>({
+    date: todayStr,
+    time: "",
+    guests: 1,
+    note: "",
+  });
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(isEdit);
+
+  // För korrekt fullbokningslogik vid redigering
+  const [originalDate, setOriginalDate] = useState<string | null>(null);
+  const [originalTime, setOriginalTime] = useState<string | null>(null);
+
+  const [slotCount, setSlotCount] = useState<number>(0);
+
+  const times = useMemo(() => {
+    const list: string[] = [];
+    for (let h = OPEN_HOUR; h <= CLOSE_HOUR; h++) list.push(`${pad(h)}:00`);
+    return list;
+  }, []);
 
   useEffect(() => {
-    // Hämta befintlig bokning vid edit
     (async () => {
       if (isEdit && id && /^\d+$/.test(id)) {
         try {
           const data = await get<Booking>(`/api/bookings/${id}`);
-          const { userId, date, time, guests, note } = data;
-          setState({ userId, date, time, guests, note: note ?? "" });
+          setState({
+            date: data.date,
+            time: data.time,
+            guests: data.guests,
+            note: data.note ?? "",
+          });
+          setOriginalDate(data.date);
+          setOriginalTime(data.time);
         } catch (e: any) {
           setErr(e.message ?? "Kunde inte hämta bokningen");
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     })();
   }, [id, isEdit]);
 
+  // Beläggning för valt datum+tid (hämta per datum, filtrera tid lokalt)
+  useEffect(() => {
+    (async () => {
+      setSlotCount(0);
+      if (!state.date || !state.time) return;
+      try {
+        const rows = await get<Booking[]>(`/api/bookings?date=${encodeURIComponent(state.date)}`);
+        const sameTime = rows.filter((b) => b.time === state.time);
+
+        // Räkna inte den egna bokningen i redigeringsläge
+        const adjusted = isEdit && id
+          ? sameTime.filter((b) => String(b.id) !== String(id))
+          : sameTime;
+
+        setSlotCount(adjusted.length);
+      } catch {
+        setSlotCount(0);
+      }
+    })();
+  }, [state.date, state.time, id, isEdit]);
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setState(s => ({ ...s, [key]: value }));
+    setState((s) => ({ ...s, [key]: value }));
+  }
+
+  function validate(): string | null {
+    if (!state.date) return "Välj ett datum.";
+    if (state.date < todayStr) return "Datum kan inte vara bakåt i tiden.";
+    if (state.date > maxDateStr) return `Datum får inte vara efter ${maxDateStr}.`;
+    if (!state.time) return "Välj en tid.";
+    if (state.guests < 1) return "Antal gäster måste vara minst 1.";
+    // Fullt bara om man inte redigerar sin egen plats i samma slot
+    const isSameOriginalSlot = isEdit && originalDate === state.date && originalTime === state.time;
+    if (!isSameOriginalSlot && slotCount >= CAPACITY) return "Den valda tiden är fullbokad.";
+    return null;
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
+    const v = validate();
+    if (v) { setErr(v); return; }
+
     try {
-      // enkel validering
-      if (!state.date || !state.time || !state.userId) {
-        throw new Error("Fyll i datum, tid och userId");
-      }
+      const payload = {
+        userId: user?.id ?? 0,
+        date: state.date,
+        time: state.time,
+        guests: state.guests,
+        note: state.note ?? "",
+      };
+
       if (isEdit && id) {
-        await put(`/api/bookings/${id}`, state);
+        await put(`/api/bookings/${id}`, payload);
       } else {
-        await post("/api/bookings", state);
+        await post("/api/bookings", payload);
       }
       nav("/bookings");
     } catch (e: any) {
@@ -60,38 +133,84 @@ export default function BookingForm() {
     }
   }
 
+  if (isEdit && loading) {
+    return (
+      <Container className="py-4">
+        <Spinner animation="border" size="sm" className="me-2" />
+        Laddar...
+      </Container>
+    );
+  }
+
+  const isSameOriginalSlot = isEdit && originalDate === state.date && originalTime === state.time;
+  const isSlotFull = slotCount >= CAPACITY && !isSameOriginalSlot;
+
   return (
     <Container className="py-4" style={{ maxWidth: 560 }}>
       <h1 className="h4 mb-3">{isEdit ? "Redigera bokning" : "Ny bokning"}</h1>
       {err && <Alert variant="danger">{err}</Alert>}
+
       <Form onSubmit={onSubmit}>
         <Form.Group className="mb-3">
-          <Form.Label>User ID</Form.Label>
-          <Form.Control type="number" value={state.userId}
-            onChange={e => update("userId", Number(e.target.value))} required />
-          <Form.Text>Vanligtvis förifyllt till inloggad användare.</Form.Text>
-        </Form.Group>
-        <Form.Group className="mb-3">
           <Form.Label>Datum</Form.Label>
-          <Form.Control type="date" value={state.date} onChange={e => update("date", e.target.value)} required />
+          <Form.Control
+            type="date"
+            value={state.date}
+            min={todayStr}
+            max={maxDateStr}
+            onChange={(e) => update("date", e.target.value)}
+            placeholder={todayStr}
+            required
+          />
         </Form.Group>
+
         <Form.Group className="mb-3">
           <Form.Label>Tid</Form.Label>
-          <Form.Control type="time" value={state.time} onChange={e => update("time", e.target.value)} required />
+          <Form.Select
+            value={state.time}
+            onChange={(e) => update("time", e.target.value)}
+            required
+          >
+            <option value="">Välj tid</option>
+            {times.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </Form.Select>
+          <div className="mt-2">
+            <Badge bg={isSlotFull ? "danger" : "secondary"}>
+              {slotCount}/{CAPACITY} bord bokade
+            </Badge>
+          </div>
         </Form.Group>
+
         <Form.Group className="mb-3">
           <Form.Label>Gäster</Form.Label>
-          <Form.Control type="number" min={1} value={state.guests}
-            onChange={e => update("guests", Number(e.target.value))} required />
+          <Form.Control
+            type="number"
+            min={1}
+            value={state.guests}
+            onChange={(e) => update("guests", Number(e.target.value))}
+            required
+          />
         </Form.Group>
+
         <Form.Group className="mb-3">
           <Form.Label>Notering</Form.Label>
-          <Form.Control as="textarea" rows={3} value={state.note ?? ""}
-            onChange={e => update("note", e.target.value)} />
+          <Form.Control
+            as="textarea"
+            rows={3}
+            value={state.note ?? ""}
+            onChange={(e) => update("note", e.target.value)}
+          />
         </Form.Group>
+
         <div className="d-flex gap-2">
-          <Button type="submit">{isEdit ? "Spara" : "Skapa"}</Button>
-          <Button variant="secondary" onClick={() => nav("/bookings")}>Avbryt</Button>
+          <Button type="submit" disabled={isSlotFull}>
+            {isEdit ? "Spara" : "Skapa"}
+          </Button>
+          <Button variant="secondary" onClick={() => nav("/bookings")}>
+            Avbryt
+          </Button>
         </div>
       </Form>
     </Container>
