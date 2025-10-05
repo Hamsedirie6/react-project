@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type {FormEvent} from "react";
+import type { FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { Button, Form, Alert, Container } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function Login() {
   const { login } = useAuth();
@@ -10,13 +10,15 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const nav = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || "/"; // <- Start som fallback
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
     try {
       await login(email, password);
-      nav("/bookings");
+      nav(from, { replace: true }); // <- tillbaka eller Start
     } catch (e: any) {
       setErr(e.message ?? "Fel vid inloggning");
     }
