@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function Start() {
   return (
     <Container className="py-5" style={{ maxWidth: 900 }}>
-      <h1 className="mb-3">Välkommen till Restaurang</h1>
+      <h1 className="mb-3">Välkommen till Elegante</h1>
       <p className="text-muted">Boka bord och kolla vår meny.</p>
 
       <div className="d-flex gap-2 mt-3">
