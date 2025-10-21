@@ -12,7 +12,8 @@ export default function ProductForm() {
   const { id } = useParams();
   const isEdit = id !== "new";
   const nav = useNavigate();
-  const { user } = useAuth();
+
+  
 
   const [state, setState] = useState<FormState>({
     name: "",
@@ -27,7 +28,7 @@ export default function ProductForm() {
     (async () => {
       if (isEdit && id && /^\d+$/.test(id)) {
         try {
-          const data = await get<Product>(`/api/products/${id}`);
+          const data = await get<Product>(`/products/${id}`);
           setState({
             name: data.name ?? "",
             description: data.description ?? "",
@@ -58,9 +59,9 @@ export default function ProductForm() {
       if (state.price < 0) throw new Error("Pris kan inte vara negativt");
 
       if (isEdit && id) {
-        await put(`/api/products/${id}`, state);
+        await put(`/products/${id}`, state);
       } else {
-        await post("/api/products", state);
+        await post("/products", state);
       }
       nav("/products");
     } catch (e: any) {

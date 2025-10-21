@@ -13,10 +13,11 @@ export default function BookingsList() {
   async function load() {
     if (!user) return;
     try {
-      const url =
-        user.role === "admin"
-          ? "/api/bookings"
-          : `/api/bookings?userId=${encodeURIComponent(String(user.id))}`;
+      const url = user.role === "admin"
+           ? "/bookings"         
+           : `/bookings?userId=${user.id}`;
+
+
 
       const data = await get<Booking[]>(url);
 
@@ -37,7 +38,7 @@ export default function BookingsList() {
   async function onDelete(id: number) {
     if (!confirm("Ta bort bokning?")) return;
     try {
-      await del(`/api/bookings/${id}`);
+      await del(`/bookings/${id}`);
       await load();
     } catch (e: any) {
       setErr(e.message ?? "Kunde inte ta bort");
@@ -82,7 +83,7 @@ export default function BookingsList() {
                 <td>{b.userId}</td>
                 <td className="d-flex gap-2">
                   {canEdit && (
-                    <Link
+                    <Link 
                       to={`/bookings/${b.id}/edit`}
                       className="btn btn-sm btn-outline-secondary"
                     >

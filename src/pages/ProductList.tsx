@@ -15,7 +15,7 @@ export default function ProductList() {
 
   async function load() {
     try {
-      const data = await get<Product[]>("/api/products");
+      const data = await get<Product[]>("/products");
       setItems(data);
     } catch (e: any) {
       setErr(e.message ?? "Kunde inte hämta rätter");
@@ -29,7 +29,7 @@ export default function ProductList() {
   async function onDelete(id: number) {
     if (!confirm("Ta bort rätten?")) return;
     try {
-      await del(`/api/products/${id}`);
+      await del(`/products/${id}`);
       await load();
     } catch (e: any) {
       setErr(e.message ?? "Kunde inte ta bort");
@@ -53,11 +53,15 @@ export default function ProductList() {
         {items.map((p) => (
           <Col key={p.id}>
             <Card className="h-100 d-flex">
-              <Card.Img
-                variant="top"
-                src={p.image ?? PLACEHOLDER}
-                alt={p.name}
-              />
+            <Card.Img
+              variant="top"
+              src={(p.image ?? "").trim() || PLACEHOLDER}
+              alt={p.name}
+              onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = PLACEHOLDER;
+            }}
+              style={{ height: 160, objectFit: "cover" }}
+            />
               <Card.Body className="d-flex flex-column">
                 <Card.Title className="d-flex justify-content-between align-items-center">
                   <span>{p.name}</span>

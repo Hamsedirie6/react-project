@@ -1,28 +1,42 @@
-import axios from "axios";
+const API_BASE_URL = "/api"; 
 
-// Bas-URL – byt om din backend kör på annan port
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5001";
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(API_BASE_URL + url, {
+    credentials: "include", 
+    headers: {
+      "Content-Type": "application/json",
+    },
+    ...options,
+  });
 
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // viktigt för session-cookie
-  headers: { "Content-Type": "application/json" }
-});
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
 
-// Hjälpare
-export async function get<T>(url: string) {
-  const res = await api.get<T>(url);
-  return res.data;
+  return res.json() as Promise<T>;
 }
-export async function post<TReq, TRes>(url: string, data: TReq) {
-  const res = await api.post<TRes>(url, data);
-  return res.data;
+
+export async function get<T>(url: string): Promise<T> {
+  return request<T>(url);
 }
-export async function put<TReq, TRes>(url: string, data: TReq) {
-  const res = await api.put<TRes>(url, data);
-  return res.data;
+
+export async function post<TReq, TRes>(url: string, data: TReq): Promise<TRes> {
+  return request<TRes>(url, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
-export async function del<TRes>(url: string) {
-  const res = await api.delete<TRes>(url);
-  return res.data;
+
+export async function put<TReq, TRes>(url: string, data: TReq): Promise<TRes> {
+  return request<TRes>(url, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function del<TRes>(url: string): Promise<TRes> {
+  return request<TRes>(url, {
+    method: "DELETE",
+  });
 }

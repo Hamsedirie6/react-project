@@ -1,4 +1,3 @@
-// src/pages/BookingForm.tsx
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { get, post, put } from "../api/client";
@@ -34,7 +33,7 @@ export default function BookingForm() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(isEdit);
 
-  // För korrekt fullbokningslogik vid redigering
+ 
   const [originalDate, setOriginalDate] = useState<string | null>(null);
   const [originalTime, setOriginalTime] = useState<string | null>(null);
 
@@ -50,7 +49,7 @@ export default function BookingForm() {
     (async () => {
       if (isEdit && id && /^\d+$/.test(id)) {
         try {
-          const data = await get<Booking>(`/api/bookings/${id}`);
+          const data = await get<Booking>(`/bookings/${id}`);
           setState({
             date: data.date,
             time: data.time,
@@ -70,16 +69,16 @@ export default function BookingForm() {
     })();
   }, [id, isEdit]);
 
-  // Beläggning för valt datum+tid (hämta per datum, filtrera tid lokalt)
+
   useEffect(() => {
     (async () => {
       setSlotCount(0);
       if (!state.date || !state.time) return;
       try {
-        const rows = await get<Booking[]>(`/api/bookings?date=${encodeURIComponent(state.date)}`);
+        const rows = await get<Booking[]>(`/bookings?date=${encodeURIComponent(state.date)}`);
         const sameTime = rows.filter((b) => b.time === state.time);
 
-        // Räkna inte den egna bokningen i redigeringsläge
+      
         const adjusted = isEdit && id
           ? sameTime.filter((b) => String(b.id) !== String(id))
           : sameTime;
@@ -101,7 +100,7 @@ export default function BookingForm() {
     if (state.date > maxDateStr) return `Datum får inte vara efter ${maxDateStr}.`;
     if (!state.time) return "Välj en tid.";
     if (state.guests < 1) return "Antal gäster måste vara minst 1.";
-    // Fullt bara om man inte redigerar sin egen plats i samma slot
+
     const isSameOriginalSlot = isEdit && originalDate === state.date && originalTime === state.time;
     if (!isSameOriginalSlot && slotCount >= CAPACITY) return "Den valda tiden är fullbokad.";
     return null;
@@ -123,9 +122,9 @@ export default function BookingForm() {
       };
 
       if (isEdit && id) {
-        await put(`/api/bookings/${id}`, payload);
+        await put(`/bookings/${id}`, payload);
       } else {
-        await post("/api/bookings", payload);
+        await post("/bookings", payload);
       }
       nav("/bookings");
     } catch (e: any) {

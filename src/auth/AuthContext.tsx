@@ -1,7 +1,5 @@
-
-import { createContext, useContext, useEffect, useState} from "react";
-import type {PropsWithChildren } from "react";
-
+import { createContext, useContext, useEffect, useState } from "react";
+import type { PropsWithChildren } from "react";
 import { get, post } from "../api/client";
 
 export type User = {
@@ -25,12 +23,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
     (async () => {
       try {
-        const data = await get<User | { error: string }>("/api/login");
-        if ((data as any)?.error) setUser(null);
+        const data = await get<User | { error: string }>("/login");
+        if ("error" in data) setUser(null);
         else setUser(data as User);
       } catch {
         setUser(null);
@@ -42,10 +39,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   async function login(email: string, password: string) {
     const data = await post<{ email: string; password: string }, User | { error: string }>(
-      "/api/login",
+      "/login", // ✅ inte /api/login!
       { email, password }
     );
-    if ((data as any)?.error) throw new Error((data as any).error);
+    if ("error" in data) throw new Error(data.error);
     setUser(data as User);
   }
 
